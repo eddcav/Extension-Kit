@@ -18,16 +18,7 @@ jobs:
       - name: Install MinGW toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            make \
-            build-essential \
-            gcc-mingw-w64-x86-64-posix \
-            g++-mingw-w64-x86-64-posix \
-            gcc-mingw-w64-i686-posix \
-            g++-mingw-w64-i686-posix \
-            mingw-w64-tools \
-            python3 \
-            rsync
+          sudo apt-get install -y --no-install-recommends make build-essential gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix gcc-mingw-w64-i686-posix g++-mingw-w64-i686-posix mingw-w64-tools python3 rsync
 
       - name: Build all BOF modules
         run: |
@@ -48,170 +39,57 @@ jobs:
           python3 << 'PYEOF'
           import re
           import pathlib
-
           root = pathlib.Path(".")
-
           meta_map = {
-              "AD-BOF/ad.axs": (
-                  "AD-BOF",
-                  "Active Directory 域渗透 BOF（LDAP / DCSync / Kerberos / ADCS 等）"
-              ),
-              "Creds-BOF/creds.axs": (
-                  "Creds-BOF",
-                  "凭据获取 BOF（hashdump / lsadump / askcreds / cookie-monster 等）"
-              ),
-              "Elevation-BOF/elevate.axs": (
-                  "Elevation-BOF",
-                  "提权 BOF（GetSystem / PrintSpoofer / DCOM Potato / UAC 绕过）"
-              ),
-              "Execution-BOF/execution.axs": (
-                  "Execution-BOF",
-                  "执行 BOF（内存执行 .NET / No-Consolation）"
-              ),
-              "Injection-BOF/inject.axs": (
-                  "Injection-BOF",
-                  "进程注入相关 BOF"
-              ),
-              "LateralMovement-BOF/lateral.axs": (
-                  "LateralMovement-BOF",
-                  "横向移动相关 BOF"
-              ),
-              "Postex-BOF/postex.axs": (
-                  "Postex-BOF",
-                  "后渗透 BOF（截图 / 文件搜索 / 防火墙规则）"
-              ),
-              "Process-BOF/process.axs": (
-                  "Process-BOF",
-                  "进程、模块、服务态势感知 BOF"
-              ),
-              "SAL-BOF/sal.axs": (
-                  "SAL-BOF",
-                  "本地态势感知 BOF"
-              ),
-              "SAR-BOF/sar.axs": (
-                  "SAR-BOF",
-                  "远程态势感知 BOF"
-              ),
+              "AD-BOF/ad.axs": ("AD-BOF", "Active Directory 域渗透 BOF（LDAP / DCSync / Kerberos / ADCS 等）"),
+              "Creds-BOF/creds.axs": ("Creds-BOF", "凭据获取 BOF（hashdump / lsadump / askcreds / cookie-monster 等）"),
+              "Elevation-BOF/elevate.axs": ("Elevation-BOF", "提权 BOF（GetSystem / PrintSpoofer / DCOM Potato / UAC 绕过）"),
+              "Execution-BOF/execution.axs": ("Execution-BOF", "执行 BOF（内存执行 .NET / No-Consolation）"),
+              "Injection-BOF/inject.axs": ("Injection-BOF", "进程注入相关 BOF"),
+              "LateralMovement-BOF/lateral.axs": ("LateralMovement-BOF", "横向移动相关 BOF"),
+              "Postex-BOF/postex.axs": ("Postex-BOF", "后渗透 BOF（截图 / 文件搜索 / 防火墙规则）"),
+              "Process-BOF/process.axs": ("Process-BOF", "进程、模块、服务态势感知 BOF"),
+              "SAL-BOF/sal.axs": ("SAL-BOF", "本地态势感知 BOF"),
+              "SAR-BOF/sar.axs": ("SAR-BOF", "远程态势感知 BOF"),
           }
-
           for rel, (name, desc) in meta_map.items():
               p = root / rel
               if not p.exists():
                   print(f"[skip meta] {rel}")
                   continue
               text = p.read_text(encoding="utf-8", errors="ignore")
-              new_meta = f'''var metadata = {{
-      name: "{name}",
-      description: "{desc}"
-  }};'''
-              text2, n = re.subn(
-                  r"var\s+metadata\s*=\s*\{.*?\};",
-                  new_meta,
-                  text,
-                  count=1,
-                  flags=re.S,
-              )
+              new_meta = f'var metadata = {{\n    name: "{name}",\n    description: "{desc}"\n}};'
+              text2, n = re.subn(r"var\s+metadata\s*=\s*\{.*?\};", new_meta, text, count=1, flags=re.S)
               if n:
                   p.write_text(text2, encoding="utf-8")
                   print(f"[meta ok] {rel}")
               else:
                   print(f"[meta fail] {rel}")
-
           replacements = [
-              (
-                  "Elevate the current agent to SYSTEM and gain the TrustedInstaller group privilege through impersonation",
-                  "通过令牌模拟将当前 Agent 提升到 SYSTEM，并获取 TrustedInstaller 权限",
-              ),
-              (
-                  "Elevate context to SYSTEM",
-                  "将当前上下文提升到 SYSTEM",
-              ),
-              (
-                  "Forges a token from a fake network authentication though SSPI Datagram Contexts",
-                  "通过 SSPI 伪网络认证伪造令牌进行 UAC 绕过",
-              ),
-              (
-                  'Modifies the "ms-settings\\Shell\\Open\\command" registry key and executes an auto-elevated EXE (ComputerDefaults.exe).',
-                  "通过修改注册表 ms-settings Shell 命令实现 UAC 绕过",
-              ),
-              (
-                  "Perform UAC bypass",
-                  "执行 UAC 绕过",
-              ),
-              (
-                  "DCOMPotato - get SYSTEM via SeImpersonate privileges.",
-                  "DCOMPotato：利用 SeImpersonate 权限提权到 SYSTEM",
-              ),
-              (
-                  "LPE via Print Spooler (Named Pipe Impersonation)",
-                  "PrintSpoofer：通过打印服务命名管道模拟提权到 SYSTEM",
-              ),
-              (
-                  "BOF tools that can be used to harvest passwords",
-                  "用于收集密码/凭据的 BOF 工具集",
-              ),
-              (
-                  "Prompt for credentials",
-                  "弹窗收集用户凭据",
-              ),
-              (
-                  "Retrieve NetNTLM hash for the current user",
-                  "获取当前用户的 NetNTLM 哈希",
-              ),
-              (
-                  "Dump SAM hashes",
-                  "导出本地 SAM 哈希",
-              ),
-              (
-                  "Dump LSA secrets from SECURITY hive (requires SYSTEM)",
-                  "导出 LSA Secrets（需要 SYSTEM 权限）",
-              ),
-              (
-                  "Dump SAM hashes (requires admin)",
-                  "导出 SAM 哈希（需要管理员权限）",
-              ),
-              (
-                  "Dump cached domain credentials (DCC2/MSCacheV2, requires SYSTEM)",
-                  "导出缓存域哈希 DCC2/MSCacheV2（需要 SYSTEM）",
-              ),
-              (
-                  "Copy file using low-level NTFS access (MFT or Metadata mode)",
-                  "通过底层 NTFS（MFT/Metadata）复制文件，可绕过占用",
-              ),
-              (
-                  "BOFs for inline execution",
-                  "用于进程内执行的 BOF",
-              ),
-              (
-                  "Perform in process .NET assembly execution",
-                  "在当前进程内内存执行 .NET 程序集",
-              ),
-              (
-                  "This extension allows you to customize the Beacon Object File (BOF) for future use.",
-                  "后渗透扩展（截图、文件搜索、防火墙规则等）",
-              ),
-              (
-                  "Active Directory Exploitation BOFs",
-                  "Active Directory 域渗透 BOF 集合",
-              ),
-              (
-                  "Executes ADWS query",
-                  "执行 ADWS 查询",
-              ),
-              (
-                  "Executes LDAP query",
-                  "执行 LDAP 查询",
-              ),
-              (
-                  "Perform DCSync operations (DCSync-BOF)",
-                  "执行 DCSync 提取域哈希",
-              ),
-              (
-                  "Read LAPS password for a computer",
-                  "读取计算机的 LAPS 密码",
-              ),
+              ("Elevate the current agent to SYSTEM and gain the TrustedInstaller group privilege through impersonation", "通过令牌模拟将当前 Agent 提升到 SYSTEM，并获取 TrustedInstaller 权限"),
+              ("Elevate context to SYSTEM", "将当前上下文提升到 SYSTEM"),
+              ("Forges a token from a fake network authentication though SSPI Datagram Contexts", "通过 SSPI 伪网络认证伪造令牌进行 UAC 绕过"),
+              ('Modifies the "ms-settings\\Shell\\Open\\command" registry key and executes an auto-elevated EXE (ComputerDefaults.exe).', "通过修改注册表 ms-settings Shell 命令实现 UAC 绕过"),
+              ("Perform UAC bypass", "执行 UAC 绕过"),
+              ("DCOMPotato - get SYSTEM via SeImpersonate privileges.", "DCOMPotato：利用 SeImpersonate 权限提权到 SYSTEM"),
+              ("LPE via Print Spooler (Named Pipe Impersonation)", "PrintSpoofer：通过打印服务命名管道模拟提权到 SYSTEM"),
+              ("BOF tools that can be used to harvest passwords", "用于收集密码/凭据的 BOF 工具集"),
+              ("Prompt for credentials", "弹窗收集用户凭据"),
+              ("Retrieve NetNTLM hash for the current user", "获取当前用户的 NetNTLM 哈希"),
+              ("Dump SAM hashes", "导出本地 SAM 哈希"),
+              ("Dump LSA secrets from SECURITY hive (requires SYSTEM)", "导出 LSA Secrets（需要 SYSTEM 权限）"),
+              ("Dump SAM hashes (requires admin)", "导出 SAM 哈希（需要管理员权限）"),
+              ("Dump cached domain credentials (DCC2/MSCacheV2, requires SYSTEM)", "导出缓存域哈希 DCC2/MSCacheV2（需要 SYSTEM）"),
+              ("Copy file using low-level NTFS access (MFT or Metadata mode)", "通过底层 NTFS（MFT/Metadata）复制文件，可绕过占用"),
+              ("BOFs for inline execution", "用于进程内执行的 BOF"),
+              ("Perform in process .NET assembly execution", "在当前进程内内存执行 .NET 程序集"),
+              ("This extension allows you to customize the Beacon Object File (BOF) for future use.", "后渗透扩展（截图、文件搜索、防火墙规则等）"),
+              ("Active Directory Exploitation BOFs", "Active Directory 域渗透 BOF 集合"),
+              ("Executes ADWS query", "执行 ADWS 查询"),
+              ("Executes LDAP query", "执行 LDAP 查询"),
+              ("Perform DCSync operations (DCSync-BOF)", "执行 DCSync 提取域哈希"),
+              ("Read LAPS password for a computer", "读取计算机的 LAPS 密码"),
           ]
-
           for p in root.rglob("*.axs"):
               text = p.read_text(encoding="utf-8", errors="ignore")
               orig = text
@@ -220,49 +98,22 @@ jobs:
               if text != orig:
                   p.write_text(text, encoding="utf-8")
                   print(f"[desc ok] {p}")
-
           print("[+] Chinese description patch finished")
           PYEOF
 
       - name: Package artifacts (complete structure)
         run: |
           mkdir -p artifacts
-
-          for dir in AD-BOF Creds-BOF Elevation-BOF Execution-BOF Injection-BOF \
-                     LateralMovement-BOF Postex-BOF Process-BOF SAL-BOF SAR-BOF; do
+          for dir in AD-BOF Creds-BOF Elevation-BOF Execution-BOF Injection-BOF LateralMovement-BOF Postex-BOF Process-BOF SAL-BOF SAR-BOF; do
             if [ -d "$dir" ]; then
-              rsync -a \
-                --exclude='.git' \
-                --exclude='*.obj' \
-                --exclude='*.exe' \
-                --exclude='*.dll' \
-                --exclude='.vscode' \
-                "$dir" artifacts/
+              rsync -a --exclude='.git' --exclude='*.obj' --exclude='*.exe' --exclude='*.dll' --exclude='.vscode' "$dir" artifacts/
             fi
           done
-
           cp extension-kit.axs artifacts/ 2>/dev/null || true
           cp README.md artifacts/ 2>/dev/null || true
-
-          echo "==================== Chinese check ===================="
-          grep -A2 "var metadata" artifacts/Elevation-BOF/elevate.axs | head -6 || true
-          grep -A2 "var metadata" artifacts/Creds-BOF/creds.axs | head -6 || true
-          echo ""
           echo "==================== Critical paths ===================="
-          for path in \
-            "artifacts/Creds-BOF/_bin" \
-            "artifacts/Creds-BOF/nanodump" \
-            "artifacts/Execution-BOF/_bin" \
-            "artifacts/Execution-BOF/No-Consolation" \
-            "artifacts/Elevation-BOF/_bin" \
-            "artifacts/AD-BOF/_bin" \
-            "artifacts/AD-BOF/ADCS-BOF/_bin" \
-            "artifacts/AD-BOF/Kerbeus-BOF/_bin"; do
-            if [ -e "$path" ]; then
-              echo "[OK] $path"
-            else
-              echo "[MISSING] $path"
-            fi
+          for path in artifacts/Creds-BOF/_bin artifacts/Creds-BOF/nanodump artifacts/Execution-BOF/_bin artifacts/Execution-BOF/No-Consolation artifacts/Elevation-BOF/_bin artifacts/AD-BOF/_bin artifacts/AD-BOF/ADCS-BOF/_bin artifacts/AD-BOF/Kerbeus-BOF/_bin; do
+            if [ -e "$path" ]; then echo "[OK] $path"; else echo "[MISSING] $path"; fi
           done
           du -sh artifacts
 
