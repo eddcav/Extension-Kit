@@ -11,7 +11,6 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -52,7 +51,6 @@ jobs:
 
           root = pathlib.Path(".")
 
-          # ========== 1. 模块 metadata 中文 ==========
           meta_map = {
               "AD-BOF/ad.axs": (
                   "AD-BOF",
@@ -119,10 +117,7 @@ jobs:
               else:
                   print(f"[meta fail] {rel}")
 
-          # ========== 2. 命令描述 英文 -> 中文 ==========
-          # 格式: (英文原文, 中文)
           replacements = [
-              # Elevation-BOF
               (
                   "Elevate the current agent to SYSTEM and gain the TrustedInstaller group privilege through impersonation",
                   "通过令牌模拟将当前 Agent 提升到 SYSTEM，并获取 TrustedInstaller 权限",
@@ -151,7 +146,6 @@ jobs:
                   "LPE via Print Spooler (Named Pipe Impersonation)",
                   "PrintSpoofer：通过打印服务命名管道模拟提权到 SYSTEM",
               ),
-              # Creds-BOF
               (
                   "BOF tools that can be used to harvest passwords",
                   "用于收集密码/凭据的 BOF 工具集",
@@ -184,7 +178,6 @@ jobs:
                   "Copy file using low-level NTFS access (MFT or Metadata mode)",
                   "通过底层 NTFS（MFT/Metadata）复制文件，可绕过占用",
               ),
-              # Execution-BOF
               (
                   "BOFs for inline execution",
                   "用于进程内执行的 BOF",
@@ -193,16 +186,10 @@ jobs:
                   "Perform in process .NET assembly execution",
                   "在当前进程内内存执行 .NET 程序集",
               ),
-              # Postex-BOF
               (
                   "This extension allows you to customize the Beacon Object File (BOF) for future use.",
                   "后渗透扩展（截图、文件搜索、防火墙规则等）",
               ),
-              (
-                  "An alternative screenshot capability that uses WinAPI and does not perform a fork & run",
-                  "截图 BOF（WinAPI，无 fork&run）",
-              ),
-              # AD-BOF 常见
               (
                   "Active Directory Exploitation BOFs",
                   "Active Directory 域渗透 BOF 集合",
@@ -241,7 +228,6 @@ jobs:
         run: |
           mkdir -p artifacts
 
-          # 完整复制各模块（含嵌套 _bin 与子 .axs）
           for dir in AD-BOF Creds-BOF Elevation-BOF Execution-BOF Injection-BOF \
                      LateralMovement-BOF Postex-BOF Process-BOF SAL-BOF SAR-BOF; do
             if [ -d "$dir" ]; then
@@ -259,14 +245,8 @@ jobs:
           cp README.md artifacts/ 2>/dev/null || true
 
           echo "==================== Chinese check ===================="
-          echo "--- Elevation metadata ---"
           grep -A2 "var metadata" artifacts/Elevation-BOF/elevate.axs | head -6 || true
-          echo ""
-          echo "--- Creds metadata ---"
           grep -A2 "var metadata" artifacts/Creds-BOF/creds.axs | head -6 || true
-          echo ""
-          echo "--- Sample command desc ---"
-          grep -E "create_command|提权|凭据|导出|UAC" artifacts/Elevation-BOF/elevate.axs | head -15 || true
           echo ""
           echo "==================== Critical paths ===================="
           for path in \
@@ -284,7 +264,6 @@ jobs:
               echo "[MISSING] $path"
             fi
           done
-          echo ""
           du -sh artifacts
 
       - name: Upload Extension-Kit artifacts
