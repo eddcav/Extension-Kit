@@ -40,105 +40,65 @@ jobs:
           echo "==================== All _bin directories ===================="
           find . -type d -name "_bin" | sort
           echo ""
-          echo "==================== Object files count ===================="
-          find . -path "*/_bin/*" \( -name "*.o" -o -name "*.obj" \) | wc -l
-          echo ""
-          echo "==================== Nested AD-BOF _bin check ===================="
-          for sub in ADCS-BOF Kerbeus-BOF LDAP-BOF RelayInformer SQL-BOF DCSync-BOF; do
-            if [ -d "AD-BOF/$sub/_bin" ]; then
-              echo "[+] AD-BOF/$sub/_bin → $(ls AD-BOF/$sub/_bin 2>/dev/null | wc -l) files"
+          echo "==================== Critical sub-scripts check ===================="
+          for f in \
+            "Creds-BOF/nanodump/nanodump.axs" \
+            "Creds-BOF/cookie-monster/cookie-monster.axs" \
+            "Execution-BOF/No-Consolation/no_consolation.axs"; do
+            if [ -f "$f" ]; then
+              echo "[OK] $f"
             else
-              echo "[!] AD-BOF/$sub/_bin → MISSING"
+              echo "[MISSING] $f"
             fi
           done
-          echo ""
-          echo "==================== Creds / Execution check ===================="
-          ls -la Creds-BOF/_bin/ 2>/dev/null || echo "[!] Creds-BOF/_bin missing"
-          ls -la Execution-BOF/_bin/ 2>/dev/null || echo "[!] Execution-BOF/_bin missing"
 
-      - name: Package artifacts (include all nested _bin)
+      - name: Package artifacts (complete structure)
         run: |
           mkdir -p artifacts
 
-          # 复制整个源码结构中所有需要的部分
-          # 1. 顶层模块
+          # 直接复制整个需要的模块目录（最稳妥的方式）
           for dir in AD-BOF Creds-BOF Elevation-BOF Execution-BOF Injection-BOF \
                      LateralMovement-BOF Postex-BOF Process-BOF SAL-BOF SAR-BOF; do
             if [ -d "$dir" ]; then
-              mkdir -p "artifacts/$dir"
-
-              # 复制顶层 _bin
-              if [ -d "$dir/_bin" ]; then
-                cp -r "$dir/_bin" "artifacts/$dir/"
-              fi
-
-              # 复制顶层 .axs / README
-              cp "$dir"/*.axs "artifacts/$dir/" 2>/dev/null || true
-              cp "$dir"/README.md "artifacts/$dir/" 2>/dev/null || true
+              # 复制整个目录，但排除一些不需要的大文件/缓存
+              rsync -a --exclude='.git' --exclude='*.obj' --exclude='*.exe' \
+                    --exclude='*.dll' --exclude='.vscode' \
+                    "$dir" artifacts/
             fi
           done
 
-          # 2. 重点：复制 AD-BOF 下所有嵌套子模块（这是之前漏掉的关键）
-          if [ -d "AD-BOF" ]; then
-            for sub in ADCS-BOF Kerbeus-BOF LDAP-BOF RelayInformer SQL-BOF DCSync-BOF WebDAVClient; do
-              if [ -d "AD-BOF/$sub" ]; then
-                mkdir -p "artifacts/AD-BOF/$sub"
-                
-                # 子模块的 _bin
-                if [ -d "AD-BOF/$sub/_bin" ]; then
-                  cp -r "AD-BOF/$sub/_bin" "artifacts/AD-BOF/$sub/"
-                fi
-                
-                # 子模块的 .axs 和其他文件
-                cp "AD-BOF/$sub"/*.axs "artifacts/AD-BOF/$sub/" 2>/dev/null || true
-                cp "AD-BOF/$sub"/README.md "artifacts/AD-BOF/$sub/" 2>/dev/null || true
-                
-                # 有些子模块可能有 dist
-                if [ -d "AD-BOF/$sub/dist" ]; then
-                  cp -r "AD-BOF/$sub/dist" "artifacts/AD-BOF/$sub/"
-                fi
-              fi
-            done
-          fi
-
-          # 3. Creds-BOF / Execution-BOF 的子模块（nanodump、No-Consolation 等）
-          find Creds-BOF Execution-BOF -type d -name "_bin" | while read bin_dir; do
-            rel_path=$(echo "$bin_dir" | sed 's|^\./||')
-            mkdir -p "artifacts/$(dirname "$rel_path")"
-            cp -r "$bin_dir" "artifacts/$(dirname "$rel_path")/"
-          done
-
-          find Creds-BOF Execution-BOF -type d -name "dist" | while read dist_dir; do
-            rel_path=$(echo "$dist_dir" | sed 's|^\./||')
-            mkdir -p "artifacts/$(dirname "$rel_path")"
-            cp -r "$dist_dir" "artifacts/$(dirname "$rel_path")/"
-          done
-
-          # 4. 总入口脚本
+          # 总入口
           cp extension-kit.axs artifacts/ 2>/dev/null || true
           cp README.md artifacts/ 2>/dev/null || true
 
-          echo "==================== Final package structure ===================="
-          find artifacts -type d -name "_bin" | sort
+          echo "==================== Final structure check ===================="
+          echo "--- Creds-BOF sub scripts ---"
+          ls -la artifacts/Creds-BOF/nanodump/*.axs 2>/dev/null || echo "nanodump.axs missing"
+          ls -la artifacts/Creds-BOF/cookie-monster/*.axs 2>/dev/null || echo "cookie-monster.axs missing"
           echo ""
-          echo "==================== Size summary ===================="
-          du -sh artifacts/* 2>/dev/null || true
+          echo "--- Execution-BOF sub scripts ---"
+          ls -la artifacts/Execution-BOF/No-Consolation/*.axs 2>/dev/null || echo "no_consolation.axs missing"
           echo ""
-          echo "==================== Critical check ===================="
+          echo "--- _bin presence ---"
           for path in \
+            "artifacts/Creds-BOF/_bin" \
+            "artifacts/Execution-BOF/_bin" \
+            "artifacts/AD-BOF/_bin" \
             "artifacts/AD-BOF/ADCS-BOF/_bin" \
             "artifacts/AD-BOF/Kerbeus-BOF/_bin" \
             "artifacts/AD-BOF/LDAP-BOF/_bin" \
             "artifacts/AD-BOF/RelayInformer/_bin" \
-            "artifacts/AD-BOF/SQL-BOF/_bin" \
-            "artifacts/Creds-BOF/_bin" \
-            "artifacts/Execution-BOF/_bin"; do
+            "artifacts/AD-BOF/SQL-BOF/_bin"; do
             if [ -d "$path" ] && [ "$(ls -A $path 2>/dev/null)" ]; then
               echo "[OK] $path"
             else
               echo "[MISSING] $path"
             fi
           done
+
+          echo ""
+          echo "Package size:"
+          du -sh artifacts
 
       - name: Upload Extension-Kit artifacts
         uses: actions/upload-artifact@v4
