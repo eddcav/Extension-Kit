@@ -1,0 +1,138 @@
+name: Build Extension-Kit
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install MinGW toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            make \
+            build-essential \
+            gcc-mingw-w64-x86-64-posix \
+            g++-mingw-w64-x86-64-posix \
+            gcc-mingw-w64-i686-posix \
+            g++-mingw-w64-i686-posix \
+            mingw-w64-tools \
+            python3
+
+      - name: Build all BOF modules
+        run: |
+          make clean || true
+          make -j$(nproc)
+          echo "[+] Build finished"
+
+      - name: Show build results
+        run: |
+          echo "==================== Generated _bin directories ===================="
+          find . -type d -name "_bin" | sort
+          echo ""
+          echo "==================== Object files count ===================="
+          find . -path "*/_bin/*" \( -name "*.o" -o -name "*.obj" \) | wc -l
+          echo ""
+          echo "==================== Sample files ===================="
+          find . -path "*/_bin/*" \( -name "*.o" -o -name "*.obj" \) | head -40
+
+      - name: Package artifacts
+        run: |
+          mkdir -p artifacts
+
+          # 复制所有模块的 _bin 目录及相关文件
+          for dir in AD-BOF Creds-BOF Elevation-BOF Execution-BOF Injection-BOF \
+                     LateralMovement-BOF Postex-BOF Process-BOF SAL-BOF SAR-BOF; do
+            if [ -d "$dir" ]; then
+              mkdir -p "artifacts/$dir"
+              
+              # _bin 目录（主要产物）
+              if [ -d "$dir/_bin" ]; then
+                cp -r "$dir/_bin" "artifacts/$dir/"
+              fi
+              
+              # 额外的 dist 目录（如 nanodump 等）
+              if [ -d "$dir/dist" ]; then
+                cp -r "$dir/dist" "artifacts/$dir/"
+              fi
+              
+              # 可能存在的子模块 dist
+              find "$dir" -mindepth 2 -type d -name "dist" -exec cp -r {} "artifacts/$dir/" \; 2>/dev/null || true
+              
+              # AxScript / 配置 / 说明
+              cp "$dir"/*.axs "artifacts/$dir/" 2>/dev/null || true
+              cp "$dir"/*.yaml "artifacts/$dir/" 2>/dev/null || true
+              cp "$dir"/README.md "artifacts/$dir/" 2>/dev/null || true
+            fi
+          done
+
+          # 总入口脚本和说明
+          cp extension-kit.axs artifacts/ 2>/dev/null || true
+          cp README.md artifacts/ 2>/dev/null || true
+
+          echo "=== Final package structure ==="
+          find artifacts -type f | sort
+          echo ""
+          echo "=== Size summary ==="
+          du -sh artifacts/* 2>/dev/null || true
+
+      - name: Upload Extension-Kit artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Extension-Kit-${{ github.sha }}
+          path: artifacts/
+          retention-days: 14
+          if-no-files-found: error
+
+  # 可选：使用官方 Dockerfile 构建（更干净的环境）
+  build-docker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build with Docker
+        run: |
+          docker compose build --no-cache
+          docker compose run --rm bof-build
+
+      - name: Collect Docker build output
+        run: |
+          mkdir -p artifacts-docker
+
+          for dir in AD-BOF Creds-BOF Elevation-BOF Execution-BOF Injection-BOF \
+                     LateralMovement-BOF Postex-BOF Process-BOF SAL-BOF SAR-BOF; do
+            if [ -d "$dir" ]; then
+              mkdir -p "artifacts-docker/$dir"
+              [ -d "$dir/_bin" ] && cp -r "$dir/_bin" "artifacts-docker/$dir/"
+              [ -d "$dir/dist" ] && cp -r "$dir/dist" "artifacts-docker/$dir/"
+              find "$dir" -mindepth 2 -type d -name "dist" -exec cp -r {} "artifacts-docker/$dir/" \; 2>/dev/null || true
+              cp "$dir"/*.axs "artifacts-docker/$dir/" 2>/dev/null || true
+            fi
+          done
+
+          cp extension-kit.axs artifacts-docker/ 2>/dev/null || true
+
+          echo "=== Docker artifacts ==="
+          find artifacts-docker -type f | sort
+
+      - name: Upload Docker artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Extension-Kit-Docker-${{ github.sha }}
+          path: artifacts-docker/
+          retention-days: 7
+          if-no-files-found: warn
